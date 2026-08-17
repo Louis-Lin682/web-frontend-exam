@@ -76,31 +76,31 @@ function JobCard({
       className="flex h-[210px] cursor-pointer flex-col gap-2.5 rounded-md border border-gray-500 bg-gray-100 p-4 transition-shadow duration-200 ease-out hover:shadow-[0_0_6px_0_#00000040] focus:outline-none focus:ring-2 focus:ring-gray-500 md:h-auto md:gap-0"
     >
       {/* 公司名稱 */}
-      <h2 className="text-base font-bold text-gray-1000 md:mb-2 md:text-xl">
+      <h2 className="h-5 text-base font-bold leading-5 text-gray-1000 md:mb-2 md:h-auto md:text-xl md:leading-normal">
         {job.companyName}
       </h2>
       {/* 職稱 學歷與薪資共用 Icon 元件，type 決定要顯示的圖案 */}
-      <div className="space-y-0 text-sm leading-5 text-gray-800 md:space-y-1 md:leading-normal">
-        <p className="flex items-center gap-1.5">
+      <div className="flex h-[70px] w-full flex-col gap-2 text-xs leading-[18px] text-gray-800 md:block md:h-auto md:space-y-1 md:text-sm md:leading-normal">
+        <p className="flex h-[18px] items-center gap-1.5 md:h-auto">
           <Icon type="user" />
           {job.jobTitle}
         </p>
-        <p className="flex items-center gap-1.5">
+        <p className="flex h-[18px] items-center gap-1.5 md:h-auto">
           <Icon type="book" />
           {educationLabel || '不限'}
         </p>
-        <p className="flex items-center gap-1.5">
+        <p className="flex h-[18px] items-center gap-1.5 md:h-auto">
           <Icon type="salary" />
           {salaryLabel || '薪水範圍'}
         </p>
       </div>
       {/* 列表只顯示preview */}
-      <p className="line-clamp-2 text-sm leading-5 text-gray-1000 md:mt-2 md:line-clamp-3">
+      <p className="line-clamp-2 h-10 w-full text-sm leading-5 text-gray-1000 md:mt-2 md:h-auto md:line-clamp-3">
         {job.preview}
       </p>
       <button
         type="button"
-        className="mt-auto self-center text-sm font-bold text-orange-700 transition-colors hover:text-orange-800 md:pt-3"
+        className="h-[18px] w-full self-center text-center text-sm font-bold leading-[18px] text-orange-700 transition-colors hover:text-orange-800 md:mt-auto md:h-auto md:w-auto md:pt-3 md:leading-normal"
       >
         查看細節
       </button>
