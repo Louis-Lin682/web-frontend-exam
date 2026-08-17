@@ -9,7 +9,8 @@ import { useCallback, useEffect, useState } from 'react';
 import EyeTrackingHero from '../hero/EyeTrackingHero';
 import JobDetailDialog from '../jobs/JobDetailDialog';
 // PC端的分頁顯示6
-const PAGE_SIZE = 6;
+const MOBILE_PAGE_SIZE = 4;
+const DESKTOP_PAGE_SIZE = 6;
 // 搜尋欄樣式
 const fieldSx = {
   '&:hover .MuiInputLabel-root': { color: '#666666' },
@@ -72,14 +73,14 @@ function JobCard({
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') onOpen(job);
       }}
-      className="flex min-h-[194px] cursor-pointer flex-col rounded-md border border-gray-400 bg-gray-100 p-4 transition-shadow duration-200 ease-out hover:shadow-[0_0_6px_0_#00000040] focus:outline-none focus:ring-2 focus:ring-gray-500 md:min-h-0"
+      className="flex h-[210px] cursor-pointer flex-col gap-2.5 rounded-md border border-gray-500 bg-gray-100 p-4 transition-shadow duration-200 ease-out hover:shadow-[0_0_6px_0_#00000040] focus:outline-none focus:ring-2 focus:ring-gray-500 md:h-auto md:gap-0"
     >
       {/* 公司名稱 */}
-      <h2 className="mb-2 text-xl font-bold text-gray-1000">
+      <h2 className="text-base font-bold text-gray-1000 md:mb-2 md:text-xl">
         {job.companyName}
       </h2>
       {/* 職稱 學歷與薪資共用 Icon 元件，type 決定要顯示的圖案 */}
-      <div className="space-y-1 text-sm text-gray-800">
+      <div className="space-y-0 text-sm leading-5 text-gray-800 md:space-y-1 md:leading-normal">
         <p className="flex items-center gap-1.5">
           <Icon type="user" />
           {job.jobTitle}
@@ -94,12 +95,12 @@ function JobCard({
         </p>
       </div>
       {/* 列表只顯示preview */}
-      <p className="mt-2 line-clamp-3 text-sm leading-5 text-gray-1000">
+      <p className="line-clamp-2 text-sm leading-5 text-gray-1000 md:mt-2 md:line-clamp-3">
         {job.preview}
       </p>
       <button
         type="button"
-        className="mt-auto self-center pt-3 text-sm font-bold text-orange-700 transition-colors hover:text-orange-800"
+        className="mt-auto self-center text-sm font-bold text-orange-700 transition-colors hover:text-orange-800 md:pt-3"
       >
         查看細節
       </button>
@@ -110,7 +111,7 @@ function JobCard({
 // 搜尋時顯示的骨架卡片，避免畫面跳動
 function JobCardSkeleton() {
   return (
-    <div className="h-full rounded-md border border-gray-400 bg-gray-100 p-4">
+    <div className="h-[210px] rounded-md border border-gray-500 bg-gray-100 p-4 md:h-full">
       <Skeleton animation="wave" height={30} width="42%" />
       <Skeleton animation="wave" height={22} width="58%" />
       <Skeleton animation="wave" height={22} width="28%" />
@@ -131,6 +132,10 @@ function JobCardSkeleton() {
 }
 
 function JobListPage() {
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia('(max-width: 767px)').matches,
+  );
+  const pageSize = isMobile ? MOBILE_PAGE_SIZE : DESKTOP_PAGE_SIZE;
   // 表單輸入值：使用者修改欄位時立即更新，但尚未送出 API 搜尋。
   const [companyName, setCompanyName] = useState('');
   const [educationLevel, setEducationLevel] = useState('');
@@ -161,6 +166,24 @@ function JobListPage() {
   // useCallback 保持函式參考穩定，避免彈框的 effect 不必要地重新執行
   const closeDialog = useCallback(() => setSelectedJob(null), []);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const handleBreakpointChange = (event) => {
+      setIsMobile(event.matches);
+      setPage(1);
+      if (event.matches) {
+        setAppliedFilters({
+          companyName: '',
+          educationLevel: '',
+          salaryLevel: '',
+        });
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleBreakpointChange);
+    return () => mediaQuery.removeEventListener('change', handleBreakpointChange);
+  }, []);
+
   // 頁面首次掛載時，同時請求兩個互不依賴的下拉選單資料。
   // Promise.all 可並行載入，速度比依序等待兩支 API 更快。
   useEffect(() => {
@@ -181,7 +204,7 @@ function JobListPage() {
     setError('');
 
     // API 使用 pre_page 與 page 進行後端分頁；每頁固定顯示六筆。
-    const params = new URLSearchParams({ pre_page: PAGE_SIZE, page });
+    const params = new URLSearchParams({ pre_page: pageSize, page });
 
     // 空白條件不放進 query string，讓 Mirage API 視為「不限」。
     if (appliedFilters.companyName) {
@@ -211,7 +234,7 @@ function JobListPage() {
     } finally {
       setLoading(false);
     }
-  }, [appliedFilters, page]);
+  }, [appliedFilters, page, pageSize]);
 
   // loadJobs 會在切頁或搜尋條件改變後更新，因此 effect 會重新載入列表。
   useEffect(() => {
@@ -230,7 +253,16 @@ function JobListPage() {
   };
 
   // 總頁數至少保留 1，避免無資料時出現 0 頁造成分頁計算異常。
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const visiblePageCount = isMobile ? 6 : 9;
+  const firstVisiblePage = Math.min(
+    Math.max(1, page - Math.floor(visiblePageCount / 2)),
+    Math.max(1, pageCount - visiblePageCount + 1),
+  );
+  const visiblePages = Array.from(
+    { length: Math.min(visiblePageCount, pageCount) },
+    (_, index) => firstVisiblePage + index,
+  );
 
   // 建立「ID 對應顯示名稱」的資料表，讓卡片能將 educationId 和 salaryId 轉成文字。
   const educationMap = Object.fromEntries(
@@ -241,32 +273,32 @@ function JobListPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-300 pb-12">
+    <div className="min-h-screen overflow-x-hidden bg-gray-300 pb-8 md:pb-12">
       {/* 頁面頂端視覺：背景、人物、眼睛跟隨滑鼠與品牌 Logo。 */}
       <EyeTrackingHero />
 
-      <main className="relative z-40 mx-auto -mt-24 max-w-[1416px] px-4 md:-mt-32">
+      <main className="relative z-40 mx-auto max-w-[1416px] px-0 md:-mt-32 md:px-4">
         {/* Top Work 與搜尋面板屬於同一定位容器，確保兩者會一起移動。 */}
-        <span className="absolute -top-7 left-4 text-caption font-bold text-white/40">
+        <span className="absolute -top-6 left-0 text-caption font-bold text-white/40 md:-top-7 md:left-4">
           Top Work
         </span>
-        <section className="flex flex-col gap-5 overflow-hidden rounded-xl border border-gray-500 bg-gray-100 p-6 shadow-[2px_2px_4px_0px_#00000040]">
+        <section className="flex flex-col gap-3 overflow-hidden bg-gray-100 p-4 md:gap-5 md:rounded-xl md:border md:border-gray-500 md:p-6 md:shadow-[2px_2px_4px_0px_#00000040]">
           {/* 搜尋表單：公司名稱、教育程度、薪資範圍及送出按鈕。 */}
           <form
             onSubmit={handleSearch}
-            className="-mx-px w-[calc(100%+2px)] shrink-0"
+            className="w-full shrink-0 md:-mx-px md:w-[calc(100%+2px)]"
           >
-            <h1 className="mb-5 flex items-center gap-3 text-2xl leading-[1.25] font-bold text-gray-1000">
+            <h1 className="mb-3 flex items-center gap-2 text-gray-1000 md:mb-5 md:gap-3">
               <span
                 aria-hidden="true"
                 className="h-4 w-1 rounded-full bg-orange-700"
               />
-              <span className="text-[24px] font-bold leading-[30px] tracking-normal">
+              <span className="text-base font-bold leading-6 tracking-normal md:text-[24px] md:leading-[30px]">
                 適合前端工程師的好工作
               </span>
             </h1>
 
-            <div className="grid gap-3 md:grid-cols-[2.3fr_1fr_1fr_auto] md:items-end xl:grid-cols-[647px_263.5px_263.5px_108px]">
+            <div className="hidden gap-3 md:grid md:grid-cols-[2.3fr_1fr_1fr_auto] md:items-end xl:grid-cols-[647px_263.5px_263.5px_108px]">
               <TextField
                 fullWidth
                 label="公司名稱"
@@ -330,12 +362,12 @@ function JobListPage() {
             </div>
           </form>
 
-          <div className="-mx-px min-h-[430px] w-[calc(100%+2px)]">
+          <div className="min-h-[430px] w-full md:-mx-px md:w-[calc(100%+2px)]">
             {/* API 尚未完成時先顯示六張卡片骨架，保持結果區版面穩定。 */}
             {loading && (
               <div className="flex flex-col md:h-[502px] md:gap-3">
-                <div className="grid gap-4 md:h-[458px] md:grid-cols-2 md:grid-rows-2 md:gap-[18px] xl:grid-cols-3">
-                  {Array.from({ length: PAGE_SIZE }, (_, index) => (
+                <div className="grid gap-3 md:h-[458px] md:grid-cols-2 md:grid-rows-2 md:gap-[18px] xl:grid-cols-3">
+                  {Array.from({ length: pageSize }, (_, index) => (
                     <JobCardSkeleton key={`job-skeleton-${index}`} />
                   ))}
                 </div>
@@ -362,7 +394,7 @@ function JobListPage() {
             {/* 只有載入完成、沒有錯誤且有資料時才渲染卡片與分頁。 */}
             {!loading && !error && jobs.length > 0 && (
               <div className="flex h-full flex-col md:h-[502px] md:gap-3">
-                <div className="grid flex-1 gap-4 md:h-[458px] md:flex-none md:grid-cols-2 md:grid-rows-2 md:gap-[18px] xl:grid-cols-3">
+                <div className="grid flex-1 gap-3 md:h-[458px] md:flex-none md:grid-cols-2 md:grid-rows-2 md:gap-[18px] xl:grid-cols-3">
                   {jobs.map((job) => (
                     <JobCard
                       key={job.id}
@@ -380,7 +412,7 @@ function JobListPage() {
                 */}
                 <nav
                   aria-label="職缺分頁"
-                  className="mx-auto mt-5 flex h-8 w-[424px] max-w-full items-center justify-center gap-1.5 px-1.5 text-sm text-gray-1000 md:mt-0"
+                  className="mx-auto mt-5 flex h-10 w-full items-center justify-center gap-1.5 px-1.5 text-sm text-gray-1000 md:mt-0 md:h-8 md:w-[424px]"
                 >
                   <button
                     type="button"
@@ -391,10 +423,7 @@ function JobListPage() {
                   >
                     ‹
                   </button>
-                  {Array.from(
-                    { length: pageCount },
-                    (_, index) => index + 1,
-                  ).map((pageNumber) => (
+                  {visiblePages.map((pageNumber) => (
                     <button
                       type="button"
                       key={pageNumber}

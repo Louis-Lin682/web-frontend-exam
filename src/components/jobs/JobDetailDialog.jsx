@@ -139,7 +139,7 @@ function JobDetailDialog({ job, onClose }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 transition-opacity duration-200 ease-out ${dialogVisible ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/50 px-4 pb-4 pt-[220px] transition-opacity duration-200 ease-out md:items-center md:overflow-hidden md:p-4 ${dialogVisible ? 'opacity-100' : 'opacity-0'}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) requestClose();
       }}
@@ -148,17 +148,17 @@ function JobDetailDialog({ job, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="job-detail-title"
-        className={`flex h-[calc(100vh-32px)] max-h-[768px] w-full max-w-[750px] flex-col overflow-hidden rounded bg-gray-100 shadow-[0_8px_24px_#00000040] transition-all duration-200 ease-out ${dialogVisible ? 'translate-y-0 scale-100' : 'translate-y-2 scale-[0.98]'}`}
+        className={`flex h-[768px] w-full max-w-[331px] shrink-0 flex-col overflow-hidden rounded bg-gray-100 shadow-[0px_11px_15px_-7px_#00000033,0px_24px_38px_3px_#00000024,0px_9px_46px_8px_#0000001F] transition-all duration-200 ease-out md:h-[calc(100vh-32px)] md:max-h-[768px] md:max-w-[750px] ${dialogVisible ? 'translate-y-0 scale-100' : 'translate-y-2 scale-[0.98]'}`}
       >
-        <header className="border-b border-gray-400 px-6 py-4">
-          <h2 id="job-detail-title" className="text-xl font-bold text-gray-1100">
+        <header className="border-b border-gray-400 px-4 py-3 md:px-6 md:py-4">
+          <h2 id="job-detail-title" className="text-base font-bold text-gray-1100 md:text-xl">
             詳細資訊
           </h2>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 py-5">
-          <p className="text-lg text-gray-1000">
-            <strong className="mr-2 text-xl">{job.companyName}</strong>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 md:px-6 md:py-5">
+          <p className="text-sm text-gray-1000 md:text-lg">
+            <strong className="mr-2 text-base md:text-xl">{job.companyName}</strong>
             {job.jobTitle}
           </p>
 
@@ -249,7 +249,7 @@ function JobDetailDialog({ job, onClose }) {
 
           {!loading && detail && (
             <div className="min-h-0 flex-1 overflow-y-auto pr-2 text-sm leading-6 text-gray-900">
-              <h3 className="mb-2 text-lg font-bold text-gray-1100">工作內容</h3>
+              <h3 className="mb-2 text-base font-bold text-gray-1100 md:text-lg">工作內容</h3>
               {/* The HTML comes from this project's local Mirage fixture. */}
               {/* eslint-disable-next-line react/no-danger */}
               <div dangerouslySetInnerHTML={{ __html: detail.description }} />
@@ -257,7 +257,7 @@ function JobDetailDialog({ job, onClose }) {
           )}
         </div>
 
-        <footer className="flex shrink-0 justify-end border-t border-gray-400 px-6 py-3">
+        <footer className="flex shrink-0 justify-end border-t border-gray-400 px-4 py-3 md:px-6">
           <button type="button" onClick={requestClose} className="text-sm text-gray-1000 hover:text-gray-1500">
             關閉
           </button>
