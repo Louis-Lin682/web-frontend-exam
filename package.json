@@ -15,6 +15,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "build:css": "tailwindcss -i ./src/index.css -o ./src/output.css --watch",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
@@ -39,6 +40,14 @@
     ]
   },
   "devDependencies": {
-    "miragejs": "^0.1.48"
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@tailwindcss/cli": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.3",
+    "autoprefixer": "^10.5.4",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.32.0",
+    "miragejs": "^0.1.48",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^3.4.19"
   }
 }
