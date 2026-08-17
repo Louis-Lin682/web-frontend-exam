@@ -5,10 +5,16 @@ import {
   useState,
 } from 'react';
 import Skeleton from '@mui/material/Skeleton';
+import fetchJson from '../../utils/fetchJson';
 
 function JobDetailDialog({ job, onClose }) {
+  // detail 保存使用者所選職缺的完整資料；列表卡片只提供摘要資訊。
   const [detail, setDetail] = useState(null);
+  // loading 與 detailError 分開管理，讓骨架、錯誤提示與正式內容互斥顯示。
   const [loading, setLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  // 點擊「重新載入」時遞增此值，藉由 effect 相依值重新發送同一筆請求。
+  const [reloadKey, setReloadKey] = useState(0);
   const [slide, setSlide] = useState(0);
   const [carouselDragX, setCarouselDragX] = useState(0);
   const [carouselTransition, setCarouselTransition] = useState(true);
@@ -16,6 +22,7 @@ function JobDetailDialog({ job, onClose }) {
   const carouselDragRef = useRef(null);
   const closeTimerRef = useRef(null);
 
+  // 先播放 200ms 的淡出動畫，動畫結束後才通知父元件清除 selectedJob。
   const requestClose = useCallback(() => {
     if (closeTimerRef.current) return;
     setDialogVisible(false);
@@ -28,12 +35,17 @@ function JobDetailDialog({ job, onClose }) {
   useEffect(() => {
     if (!job) return undefined;
 
+    // 每次切換職缺或重新載入，都建立獨立的 AbortController。
+    // 若彈框提前關閉，cleanup 會取消尚未完成的請求，避免卸載後繼續更新狀態。
+    const controller = new AbortController();
     setLoading(true);
+    setDetail(null);
+    setDetailError('');
     setSlide(0);
     window.requestAnimationFrame(() => setDialogVisible(true));
-    fetch(`/api/v1/jobs/${job.id}`)
-      .then((response) => response.json())
+    fetchJson(`/api/v1/jobs/${job.id}`, { signal: controller.signal })
       .then((data) => {
+        // API 成功後將輪播定位在中間那組複製圖片，供無限輪播向兩側移動。
         setCarouselTransition(false);
         setDetail(data);
         setSlide(data.companyPhoto?.length || 0);
@@ -41,7 +53,16 @@ function JobDetailDialog({ job, onClose }) {
           window.requestAnimationFrame(() => setCarouselTransition(true));
         });
       })
-      .finally(() => setLoading(false));
+      .catch((requestError) => {
+        // 主動取消請求不算載入錯誤；只有真正的網路或 HTTP 錯誤才顯示提示。
+        if (requestError.name !== 'AbortError') {
+          setDetailError('詳細資料載入失敗，請稍後再試。');
+        }
+      })
+      .finally(() => {
+        // 已取消的舊請求不可覆蓋新請求的 loading 狀態。
+        if (!controller.signal.aborted) setLoading(false);
+      });
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') requestClose();
@@ -62,11 +83,12 @@ function JobDetailDialog({ job, onClose }) {
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      controller.abort();
       document.body.style.overflow = originalOverflow;
       document.body.style.paddingRight = originalPaddingRight;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [job, requestClose]);
+  }, [job, reloadKey, requestClose]);
 
   useEffect(() => () => {
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
@@ -202,7 +224,23 @@ function JobDetailDialog({ job, onClose }) {
             </div>
           )}
 
-          {!loading && photos.length > 0 && (
+          {!loading && detailError && (
+            <div
+              className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center"
+              role="alert"
+            >
+              <p className="text-sm text-red-800">{detailError}</p>
+              <button
+                type="button"
+                className="rounded bg-gray-700 px-4 py-2 text-sm font-bold text-white hover:bg-gray-900"
+                onClick={() => setReloadKey((current) => current + 1)}
+              >
+                重新載入
+              </button>
+            </div>
+          )}
+
+          {!loading && !detailError && photos.length > 0 && (
             <div className="flex h-[166px] w-full flex-col gap-[10px] overflow-hidden">
               <div
                 className="h-[150px] w-full touch-pan-y overflow-hidden cursor-grab active:cursor-grabbing"
@@ -247,7 +285,7 @@ function JobDetailDialog({ job, onClose }) {
             </div>
           )}
 
-          {!loading && detail && (
+          {!loading && !detailError && detail && (
             <div className="min-h-0 flex-1 overflow-y-auto pr-2 text-sm leading-6 text-gray-900">
               <h3 className="mb-2 text-base font-bold text-gray-1100 md:text-lg">工作內容</h3>
               {/* The HTML comes from this project's local Mirage fixture. */}

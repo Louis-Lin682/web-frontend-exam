@@ -8,6 +8,7 @@ import TextField from '@mui/material/TextField';
 import { useCallback, useEffect, useState } from 'react';
 import EyeTrackingHero from '../hero/EyeTrackingHero';
 import JobDetailDialog from '../jobs/JobDetailDialog';
+import fetchJson from '../../utils/fetchJson';
 // PC端的分頁顯示6
 const MOBILE_PAGE_SIZE = 4;
 const DESKTOP_PAGE_SIZE = 6;
@@ -65,15 +66,7 @@ function JobCard({
 }) {
   return (
     <article
-      role="button"
-      tabIndex={0}
-      // 點擊卡片開始職缺介紹
-      onClick={() => onOpen(job)}
-      // 保留鍵盤支援，Enter 或空白鍵也能開啟彈框
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') onOpen(job);
-      }}
-      className="flex h-[210px] cursor-pointer flex-col gap-2.5 rounded-md border border-gray-500 bg-gray-100 p-4 transition-shadow duration-200 ease-out hover:shadow-[0_0_6px_0_#00000040] focus:outline-none focus:ring-2 focus:ring-gray-500 md:h-auto md:gap-0"
+      className="flex h-[210px] flex-col gap-2.5 rounded-md border border-gray-500 bg-gray-100 p-4 transition-shadow duration-200 ease-out hover:shadow-[0_0_6px_0_#00000040] md:h-auto md:gap-0"
     >
       {/* 公司名稱 */}
       <h2 className="h-5 text-base font-bold leading-5 text-gray-1000 md:mb-2 md:h-auto md:text-xl md:leading-normal">
@@ -98,12 +91,21 @@ function JobCard({
       <p className="line-clamp-2 h-10 w-full text-sm leading-5 text-gray-1000 md:mt-2 md:h-auto md:line-clamp-3">
         {job.preview}
       </p>
-      <button
-        type="button"
-        className="h-[18px] w-full self-center text-center text-sm font-bold leading-[18px] text-orange-700 transition-colors hover:text-orange-800 md:mt-auto md:h-auto md:w-auto md:pt-3 md:leading-normal"
-      >
-        查看細節
-      </button>
+      {/*
+        只有這個按鈕會開啟詳情彈框，避免使用者只是選取卡片文字時誤觸。
+        外層維持設計稿指定的文字列高度；按鈕使用負 margin 向上下延伸，
+        因此畫面尺寸不變，但滑鼠與觸控裝置會有更大的實際點擊範圍。
+      */}
+      <div className="relative h-[18px] w-full shrink-0 md:mt-auto md:h-[24px] md:pt-3">
+        <button
+          type="button"
+          aria-label={`查看 ${job.companyName} ${job.jobTitle} 的詳細資訊`}
+          onClick={() => onOpen(job)}
+          className="absolute -inset-y-2 inset-x-0 cursor-pointer text-center text-sm font-bold leading-[18px] text-orange-700 transition-colors hover:text-orange-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-700 md:inset-x-0 md:-bottom-2 md:top-1"
+        >
+          查看細節
+        </button>
+      </div>
     </article>
   );
 }
@@ -159,6 +161,7 @@ function JobListPage() {
   // 非同步請求的畫面狀態。
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [filterError, setFilterError] = useState('');
 
   // 使用者選擇的卡片，關閉則設為null
   const [selectedJob, setSelectedJob] = useState(null);
@@ -188,14 +191,14 @@ function JobListPage() {
   // Promise.all 可並行載入，速度比依序等待兩支 API 更快。
   useEffect(() => {
     Promise.all([
-      fetch('/api/v1/educationLevelList').then((response) => response.json()),
-      fetch('/api/v1/salaryLevelList').then((response) => response.json()),
+      fetchJson('/api/v1/educationLevelList'),
+      fetchJson('/api/v1/salaryLevelList'),
     ])
       .then(([educationData, salaryData]) => {
-        setEducationOptions(educationData);
-        setSalaryOptions(salaryData);
+        setEducationOptions(Array.isArray(educationData) ? educationData : []);
+        setSalaryOptions(Array.isArray(salaryData) ? salaryData : []);
       })
-      .catch(() => setError('篩選條件載入失敗，請稍後再試。'));
+      .catch(() => setFilterError('篩選條件載入失敗，請稍後再試。'));
   }, []);
 
   const loadJobs = useCallback(async () => {
@@ -218,10 +221,7 @@ function JobListPage() {
     }
 
     try {
-      const response = await fetch(`/api/v1/jobs?${params.toString()}`);
-      // fetch 遇到 4xx/5xx 不會自動丟出錯誤，所以通常要自行檢查 response.ok
-      if (!response.ok) throw new Error('Request failed');
-      const result = await response.json();
+      const result = await fetchJson(`/api/v1/jobs?${params.toString()}`);
 
       // 防止 API 欄位缺漏導致 render 時呼叫 map 失敗。
       setJobs(result.data || []);
@@ -360,6 +360,11 @@ function JobListPage() {
                 條件搜尋
               </button>
             </div>
+            {filterError && (
+              <p className="mt-2 text-sm text-red-800" role="alert">
+                {filterError}
+              </p>
+            )}
           </form>
 
           <div className="min-h-[430px] w-full md:-mx-px md:w-[calc(100%+2px)]">
