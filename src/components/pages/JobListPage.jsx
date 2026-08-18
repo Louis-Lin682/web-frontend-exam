@@ -5,7 +5,12 @@ import OutlinedInput from '@mui/material/OutlinedInput';
 import Select from '@mui/material/Select';
 import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
-import { useCallback, useEffect, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import fetchJson from '../../utils/fetchJson';
 import EyeTrackingHero from '../hero/EyeTrackingHero';
 import JobDetailDialog from '../jobs/JobDetailDialog';
@@ -134,6 +139,7 @@ function JobCardSkeleton() {
 }
 
 function JobListPage() {
+  const resultsRef = useRef(null);
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia('(max-width: 767px)').matches,
   );
@@ -279,6 +285,21 @@ function JobListPage() {
     (_, index) => firstVisiblePage + index,
   );
 
+  const changePage = (nextPage) => {
+    setPage(nextPage);
+
+    // iPhone Safari 在最後一頁筆數較少、頁面高度縮短時，可能停在舊捲動位置。
+    // 手機換頁後將結果區移回視窗頂端，避免短暫看到超出內容範圍的空白畫面。
+    if (isMobile) {
+      window.requestAnimationFrame(() => {
+        resultsRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      });
+    }
+  };
+
   // 建立「ID 對應顯示名稱」的資料表，讓卡片能將 educationId 和 salaryId 轉成文字。
   const educationMap = Object.fromEntries(
     educationOptions.map((item) => [String(item.id), item.label]),
@@ -388,7 +409,10 @@ function JobListPage() {
             )}
           </form>
 
-          <div className="min-h-[430px] w-full md:-mx-px md:w-[calc(100%+2px)]">
+          <div
+            ref={resultsRef}
+            className="min-h-[430px] w-full md:-mx-px md:w-[calc(100%+2px)]"
+          >
             {/* 請求失敗時顯示錯誤訊息 */}
             {!loading && error && (
               <div className="flex min-h-[380px] items-center justify-center text-red-800">
@@ -408,7 +432,8 @@ function JobListPage() {
             */}
             {!error && (loading || jobs.length > 0) && (
               <div className="flex h-full flex-col md:gap-3 xl:h-[502px]">
-                <div className="grid flex-1 gap-3 md:grid-cols-2 md:gap-[18px] xl:h-[458px] xl:flex-none xl:grid-cols-3 xl:grid-rows-2">
+                {/* 手機固定保留四張卡片高度，避免末頁筆數不足時頁面突然縮短。 */}
+                <div className="grid min-h-[876px] flex-1 gap-3 md:min-h-0 md:grid-cols-2 md:gap-[18px] xl:h-[458px] xl:flex-none xl:grid-cols-3 xl:grid-rows-2">
                   {loading
                     ? Array.from({ length: pageSize }, (_, index) => (
                         <JobCardSkeleton key={`job-skeleton-${index}`} />
@@ -436,9 +461,9 @@ function JobListPage() {
                   >
                     <button
                       type="button"
-                      aria-label="上一頁"
+                    aria-label="上一頁"
                     disabled={loading || page === 1}
-                    onClick={() => setPage((current) => current - 1)}
+                    onClick={() => changePage(page - 1)}
                     className="flex h-8 w-8 items-center justify-center rounded disabled:cursor-not-allowed disabled:text-gray-500"
                   >
                     {/* 按鈕維持 32px 點擊範圍，箭頭依手機設計稿固定為 20px。 */}
@@ -453,9 +478,9 @@ function JobListPage() {
                       <button
                         type="button"
                         key={pageNumber}
-                        aria-current={pageNumber === page ? 'page' : undefined}
-                        disabled={loading}
-                        onClick={() => setPage(pageNumber)}
+                      aria-current={pageNumber === page ? 'page' : undefined}
+                      disabled={loading}
+                      onClick={() => changePage(pageNumber)}
                         className={`h-8 min-w-8 rounded-full px-2 disabled:cursor-wait ${pageNumber === page ? 'bg-gray-300 font-bold' : 'hover:bg-gray-200'}`}
                       >
                         {pageNumber}
@@ -463,9 +488,9 @@ function JobListPage() {
                     ))}
                     <button
                       type="button"
-                      aria-label="下一頁"
+                    aria-label="下一頁"
                     disabled={loading || page === pageCount}
-                    onClick={() => setPage((current) => current + 1)}
+                    onClick={() => changePage(page + 1)}
                     className="flex h-8 w-8 items-center justify-center rounded disabled:cursor-not-allowed disabled:text-gray-500"
                   >
                     <span
