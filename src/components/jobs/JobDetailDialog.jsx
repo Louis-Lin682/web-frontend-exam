@@ -240,7 +240,7 @@ function JobDetailDialog({ job, onClose }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/50 p-4 transition-opacity duration-200 ease-out md:overflow-hidden ${dialogVisible ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4 transition-colors duration-300 ease-out md:overflow-hidden ${dialogVisible ? 'bg-black/50' : 'bg-black/0'}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) requestClose();
       }}
