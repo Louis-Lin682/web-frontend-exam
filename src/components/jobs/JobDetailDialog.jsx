@@ -229,13 +229,13 @@ function JobDetailDialog({ job, onClose }) {
   };
 
   let dialogMotionClass =
-    'translate-y-2 scale-0 rotate-[3deg] opacity-0 ease-[cubic-bezier(0.34,1.56,0.64,1)] md:rotate-[6deg]';
+    'translate-y-2 scale-0 opacity-0 ease-[cubic-bezier(0.34,1.56,0.64,1)]';
   if (dialogVisible) {
     dialogMotionClass =
-      'translate-y-0 scale-100 rotate-0 opacity-100 ease-[cubic-bezier(0.34,1.56,0.64,1)]';
+      'translate-y-0 scale-100 opacity-100 ease-[cubic-bezier(0.34,1.56,0.64,1)]';
   } else if (dialogClosing) {
     dialogMotionClass =
-      'translate-y-2 scale-0 rotate-0 opacity-0 ease-in';
+      'translate-y-2 scale-0 opacity-0 ease-in';
   }
 
   return (
