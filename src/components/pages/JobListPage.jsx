@@ -66,7 +66,7 @@ function JobCard({
 }) {
   return (
     <article
-      className="flex h-[210px] flex-col gap-2.5 rounded-md border border-gray-500 bg-gray-100 p-4 transition-shadow duration-200 ease-out hover:shadow-[0_0_6px_0_#00000040] md:h-auto md:gap-0"
+      className="flex h-[210px] flex-col gap-2.5 overflow-hidden rounded-md border border-gray-500 bg-gray-100 p-4 transition-shadow duration-200 ease-out hover:shadow-[0_0_6px_0_#00000040] md:h-auto md:min-h-[210px] md:gap-0"
     >
       {/* 公司名稱 */}
       <h2 className="h-5 text-base font-bold leading-5 text-gray-1000 md:mb-2 md:h-auto md:text-xl md:leading-normal">
@@ -318,8 +318,9 @@ function JobListPage() {
               </span>
             </h1>
 
-            <div className="hidden gap-3 md:grid md:grid-cols-[2.3fr_1fr_1fr_auto] md:items-end xl:grid-cols-[647px_263.5px_263.5px_108px]">
+            <div className="hidden gap-[18px] md:grid md:grid-cols-[minmax(0,2.3fr)_minmax(0,1fr)_minmax(0,1fr)_108px] md:items-end min-[1416px]:grid-cols-[647px_263.5px_263.5px_108px]">
               <TextField
+                className="min-w-0"
                 fullWidth
                 label="公司名稱"
                 placeholder="請輸入公司名稱"
@@ -329,7 +330,7 @@ function JobListPage() {
                 sx={fieldSx}
                 variant="outlined"
               />
-              <FormControl fullWidth sx={fieldSx}>
+              <FormControl className="min-w-0" fullWidth sx={fieldSx}>
                 <InputLabel shrink id="education-level-label">
                   教育程度
                 </InputLabel>
@@ -351,7 +352,7 @@ function JobListPage() {
               </FormControl>
 
               {/* 薪資選項，空字串代表其餘撈 API 資料 */}
-              <FormControl fullWidth sx={fieldSx}>
+              <FormControl className="min-w-0" fullWidth sx={fieldSx}>
                 <InputLabel shrink id="salary-level-label">
                   薪水範圍
                 </InputLabel>
@@ -406,8 +407,8 @@ function JobListPage() {
               已取得過資料後，切頁期間仍保留分頁列並暫停操作，避免整列閃爍消失。
             */}
             {!error && (loading || jobs.length > 0) && (
-              <div className="flex h-full flex-col md:h-[502px] md:gap-3">
-                <div className="grid flex-1 gap-3 md:h-[458px] md:flex-none md:grid-cols-2 md:grid-rows-2 md:gap-[18px] xl:grid-cols-3">
+              <div className="flex h-full flex-col md:gap-3 xl:h-[502px]">
+                <div className="grid flex-1 gap-3 md:grid-cols-2 md:gap-[18px] xl:h-[458px] xl:flex-none xl:grid-cols-3 xl:grid-rows-2">
                   {loading
                     ? Array.from({ length: pageSize }, (_, index) => (
                         <JobCardSkeleton key={`job-skeleton-${index}`} />
