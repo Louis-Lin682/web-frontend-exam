@@ -432,16 +432,22 @@ function JobListPage() {
                   <nav
                     aria-label="職缺分頁"
                     aria-busy={loading}
-                    className="mx-auto mt-5 flex h-10 w-full items-center justify-center gap-1.5 px-1.5 text-sm text-gray-1000 md:mt-0 md:h-8 md:w-[424px]"
+                    className="mx-auto mt-5 flex h-8 w-[310px] items-center justify-center gap-1.5 px-1.5 text-sm text-gray-1000 md:mt-0 md:w-[424px]"
                   >
                     <button
                       type="button"
                       aria-label="上一頁"
-                      disabled={loading || page === 1}
-                      onClick={() => setPage((current) => current - 1)}
-                      className="h-8 w-8 rounded disabled:cursor-not-allowed disabled:text-gray-500"
+                    disabled={loading || page === 1}
+                    onClick={() => setPage((current) => current - 1)}
+                    className="flex h-8 w-8 items-center justify-center rounded disabled:cursor-not-allowed disabled:text-gray-500"
+                  >
+                    {/* 按鈕維持 32px 點擊範圍，箭頭依手機設計稿固定為 20px。 */}
+                    <span
+                      aria-hidden="true"
+                      className="flex h-5 w-5 items-center justify-center text-xl leading-5 md:text-base"
                     >
                       ‹
+                    </span>
                     </button>
                     {visiblePages.map((pageNumber) => (
                       <button
@@ -458,12 +464,17 @@ function JobListPage() {
                     <button
                       type="button"
                       aria-label="下一頁"
-                      disabled={loading || page === pageCount}
-                      onClick={() => setPage((current) => current + 1)}
-                      className="h-8 w-8 rounded disabled:cursor-not-allowed disabled:text-gray-500"
+                    disabled={loading || page === pageCount}
+                    onClick={() => setPage((current) => current + 1)}
+                    className="flex h-8 w-8 items-center justify-center rounded disabled:cursor-not-allowed disabled:text-gray-500"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="flex h-5 w-5 items-center justify-center text-xl leading-5 md:text-base"
                     >
                       ›
-                    </button>
+                    </span>
+                  </button>
                   </nav>
                 ) : (
                   // 首次載入還不知道總頁數，只保留桌面版分頁高度避免畫面跳動。
