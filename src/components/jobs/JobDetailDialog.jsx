@@ -59,17 +59,19 @@ function JobDetailDialog({ job, onClose }) {
   const [carouselHovered, setCarouselHovered] = useState(false);
   const [carouselDragging, setCarouselDragging] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogClosing, setDialogClosing] = useState(false);
   const carouselDragRef = useRef(null);
   const closeTimerRef = useRef(null);
 
-  // 先播放 200ms 的淡出動畫，動畫結束後才通知父元件清除 selectedJob。
+  // 先播放淡出動畫，動畫結束後才通知父元件清除 selectedJob。
   const requestClose = useCallback(() => {
     if (closeTimerRef.current) return;
+    setDialogClosing(true);
     setDialogVisible(false);
     closeTimerRef.current = window.setTimeout(() => {
       closeTimerRef.current = null;
       onClose();
-    }, 200);
+    }, 300);
   }, [onClose]);
 
   useEffect(() => {
@@ -82,6 +84,7 @@ function JobDetailDialog({ job, onClose }) {
     setDetail(null);
     setDetailError('');
     setSlide(0);
+    setDialogClosing(false);
     window.requestAnimationFrame(() => setDialogVisible(true));
     fetchJson(`/api/v1/jobs/${job.id}`, { signal: controller.signal })
       .then((data) => {
@@ -225,9 +228,19 @@ function JobDetailDialog({ job, onClose }) {
     }
   };
 
+  let dialogMotionClass =
+    'translate-y-2 scale-0 rotate-[3deg] opacity-0 ease-[cubic-bezier(0.34,1.56,0.64,1)] md:rotate-[6deg]';
+  if (dialogVisible) {
+    dialogMotionClass =
+      'translate-y-0 scale-100 rotate-0 opacity-100 ease-[cubic-bezier(0.34,1.56,0.64,1)]';
+  } else if (dialogClosing) {
+    dialogMotionClass =
+      'translate-y-2 scale-0 rotate-0 opacity-0 ease-in';
+  }
+
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/50 px-4 pb-4 pt-[220px] transition-opacity duration-200 ease-out md:items-center md:overflow-hidden md:p-4 ${dialogVisible ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/50 p-4 transition-opacity duration-200 ease-out md:overflow-hidden ${dialogVisible ? 'opacity-100' : 'opacity-0'}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) requestClose();
       }}
@@ -236,7 +249,7 @@ function JobDetailDialog({ job, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="job-detail-title"
-        className={`flex h-[768px] w-full max-w-[331px] shrink-0 flex-col overflow-hidden rounded bg-gray-100 shadow-[0px_11px_15px_-7px_#00000033,0px_24px_38px_3px_#00000024,0px_9px_46px_8px_#0000001F] transition-all duration-200 ease-out md:h-[calc(100vh-32px)] md:max-h-[768px] md:max-w-[750px] ${dialogVisible ? 'translate-y-0 scale-100' : 'translate-y-2 scale-[0.98]'}`}
+        className={`flex h-[calc(100dvh-32px)] max-h-[768px] w-full max-w-[331px] shrink-0 flex-col overflow-hidden rounded bg-gray-100 shadow-[0px_11px_15px_-7px_#00000033,0px_24px_38px_3px_#00000024,0px_9px_46px_8px_#0000001F] transition-all duration-300 md:max-w-[750px] ${dialogMotionClass}`}
       >
         <header className="border-b border-gray-400 px-4 py-3 md:px-6 md:py-4">
           <h2

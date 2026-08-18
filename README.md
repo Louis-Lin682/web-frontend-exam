@@ -1,8 +1,116 @@
 # Frontend Engineer Exam
 
-這是一份 Yile 前端工程師的徵才專案，會需根據規則及設計檔完成頁面需求。
+依照 Yile 前端工程師測驗的 Figma 設計稿完成職缺搜尋頁，並使用 Mirage JS 模擬題目提供的 API。
 
-## ⭐️ 需求
+## 專案成果
+
+本專案完成以下功能：
+
+- 公司名稱、教育程度與薪資條件搜尋
+- 手機版每頁 4 筆、桌面版每頁 6 筆的響應式分頁
+- 載入中 Skeleton、空資料及 API 錯誤狀態
+- 延遲載入職缺詳情、錯誤重試及公司圖片輪播
+- 支援滑鼠及觸控操作的 Hero 眼球跟隨效果
+- 手機版 Dialog 置中、內容捲動及鍵盤關閉
+
+## 使用技術
+
+- React 18
+- Material UI
+- Tailwind CSS
+- Mirage JS
+- React Testing Library
+- ESLint（Airbnb JavaScript Style Guide）
+
+## 如何執行
+
+建議使用 Node.js 18 以上版本。
+
+```bash
+# 安裝依賴
+npm install
+
+# 啟動開發環境
+npm start
+```
+
+啟動後開啟 [http://localhost:3000](http://localhost:3000)。Mirage JS 會在瀏覽器中攔截 API 請求，因此不需要另外啟動後端服務。
+
+## 可用指令
+
+```bash
+npm start                      # 啟動開發環境
+npm run lint                   # 使用 ESLint 檢查 src
+npm test -- --watchAll=false   # 執行一次完整測試
+npm run build                  # 建立正式版本
+```
+
+## 專案架構
+
+```text
+src/
+├── .eslintrc.json                 # Airbnb 規則與專案例外設定
+├── components/
+│   ├── hero/
+│   │   └── EyeTrackingHero.jsx    # Hero 視覺與眼球跟隨效果
+│   ├── jobs/
+│   │   ├── JobCard.jsx            # 單筆職缺卡片
+│   │   ├── JobCardSkeleton.jsx    # 列表載入狀態
+│   │   ├── JobDetailDialog.jsx    # 詳情請求、彈框與圖片輪播
+│   │   ├── JobPagination.jsx      # 分頁操作
+│   │   └── JobResults.jsx         # 組合列表的各種畫面狀態
+│   └── pages/
+│       └── JobListPage.jsx        # 搜尋、分頁與列表資料狀態
+├── constants/                     # Mirage JS 使用的模擬資料
+├── utils/
+│   └── fetchJson.js               # 共用 JSON 請求與 HTTP 錯誤處理
+├── App.js
+└── index.js                       # Mirage JS API 與 React 進入點
+```
+
+## 實作邏輯
+
+### 設計樣式設定
+
+將設計稿使用的橘、紅與灰色階，以及文字大小統一設定在 `tailwind.config.js`。元件透過 `text-caption`、`text-gray-1000`、`bg-orange-700` 等 class 使用相同規格。
+
+### 搜尋條件與列表請求
+
+`JobListPage` 將表單輸入值與已套用的搜尋條件分開管理，只有送出表單才會重新請求資料，避免每次輸入都呼叫 API。頁碼或搜尋條件改變時會以 `AbortController` 取消前一次請求，避免較舊的結果覆蓋目前畫面。
+
+### 響應式分頁
+
+透過 `matchMedia` 監聽 `767px` 斷點。手機版每頁顯示 4 筆、桌面版每頁顯示 6 筆；跨越斷點時會回到第一頁。手機切頁後則將畫面捲回結果區頂端。
+
+### 畫面狀態
+
+`JobResults` 集中處理載入、錯誤、空資料與正常列表。載入期間由 `JobCardSkeleton` 保留卡片高度，並將分頁操作暫時停用，減少切頁時的版面跳動與重複操作。
+
+### 職缺詳情
+
+點擊「查看細節」後，`JobDetailDialog` 才依職缺 ID 載入完整內容。Dialog 包含 Skeleton、錯誤重試、圖片失敗狀態、循環輪播及拖曳操作，也支援背景點擊與 `Escape` 關閉。手機版使用動態視窗高度，避免瀏覽器工具列使彈框超出畫面。手機與桌面版皆加入縮放進退場效果，並依畫面尺寸調整開啟時的旋轉幅度。
+
+### 眼球跟隨效果
+
+`EyeTrackingHero` 使用 Pointer Events 同時支援滑鼠與觸控。程式會取得兩眼位置，從雙眼中心計算指標方向，再依眼睛尺寸限制位移半徑。
+
+## 遇到的問題與解決方式
+
+### iOS Safari 末頁高度縮短
+
+手機版進入最後一頁時，職缺數量可能少於每頁設定的 4 筆。此情況在 Android 只會顯示剩餘卡片，但 iOS Safari 會將列表高度依實際內容收縮，使分頁向上移動並在下方留下大面積空白。列表因此保留四張卡片所需的最小高度，並讓現有卡片由頂部開始排列，使 iOS 的末頁版面與其他頁面保持一致。
+
+### 圖片輪播循環時的跳動
+
+輪播從最後一張回到第一張時，直接重設索引會出現反方向滑動或瞬間跳動。實作時將圖片複製成三組，讓輪播先在中間區段持續移動；抵達外側區段後暫時關閉 transition，將索引校正回相同內容的位置，再於下一個畫面更新重新開啟動畫。拖曳時也會暫停自動播放，避免手動與自動播放互相衝突。
+
+### 搜尋條件與 API 請求
+
+若直接將輸入欄位作為請求依賴，每次輸入都會重新載入資料。將輸入值與查詢條件分開，並在新請求開始前取消舊請求，降低不必要的載入與非同步競態問題。
+
+---
+
+## 📋 原始題目需求
 
 ### 框架
 

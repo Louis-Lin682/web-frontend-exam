@@ -19,9 +19,14 @@ module.exports = {
           '0%, 100%': { transform: 'scale(1)' },
           '50%': { transform: 'scale(1.03)' },
         },
+        cardEnter: {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'hero-zoom': 'heroZoom 1.5s ease-in-out infinite',
+        'card-enter': 'cardEnter 300ms ease-out both',
       },
       colors: {
         orange: {

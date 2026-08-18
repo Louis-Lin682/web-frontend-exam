@@ -6,12 +6,15 @@ function EyeTrackingHero() {
 
   useEffect(() => {
     const handlePointerMove = (event) => {
+      // 取得滑鼠或觸控點目前在畫面上的位置。
       const { clientX: pointerX, clientY: pointerY } = event;
       const leftEye = leftEyeRef.current;
       const rightEye = rightEyeRef.current;
 
+      // 圖片還沒渲染完成時不計算位置。
       if (!leftEye || !rightEye) return;
 
+      // 先找出兩眼之間的中心點，讓左右眼朝同一個方向移動。
       const leftRect = leftEye.getBoundingClientRect();
       const rightRect = rightEye.getBoundingClientRect();
       const leftCenterX = leftRect.left + leftRect.width / 2;
@@ -20,7 +23,10 @@ function EyeTrackingHero() {
       const rightCenterY = rightRect.top + rightRect.height / 2;
       const eyesCenterX = (leftCenterX + rightCenterX) / 2;
       const eyesCenterY = (leftCenterY + rightCenterY) / 2;
+
+      // 計算中心點到指標的角度。
       const angle = Math.atan2(pointerY - eyesCenterY, pointerX - eyesCenterX);
+
       // 手機眼睛尺寸較小，觸控時提高移動比例，讓跟隨效果更容易被看見。
       const movementRatio = event.pointerType === 'touch' ? 0.18 : 0.107;
       const maxRadius = leftRect.width * movementRatio;
@@ -28,12 +34,15 @@ function EyeTrackingHero() {
         Math.sin(angle) * maxRadius
       }px)`;
 
+      // 兩眼套用相同位移，並限制在眼眶範圍內。
       leftEye.style.transform = transform;
       rightEye.style.transform = transform;
     };
 
+    // pointer 事件可同時處理滑鼠與觸控操作。
     window.addEventListener('pointerdown', handlePointerMove);
     window.addEventListener('pointermove', handlePointerMove);
+
     return () => {
       window.removeEventListener('pointerdown', handlePointerMove);
       window.removeEventListener('pointermove', handlePointerMove);
@@ -49,7 +58,7 @@ function EyeTrackingHero() {
       />
 
       {/* 人物和眼球共用同一個等比例座標容器。 */}
-      <div className="pointer-events-none absolute bottom-[-2px] left-0 z-[5] h-full aspect-[1097/823]">
+      <div className="pointer-events-none absolute bottom-0 left-0 z-[5] h-full aspect-[1097/823]">
         <img
           src="/images/hero/character-02.png"
           alt=""
