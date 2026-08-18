@@ -6,9 +6,9 @@ import Select from '@mui/material/Select';
 import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
 import { useCallback, useEffect, useState } from 'react';
+import fetchJson from '../../utils/fetchJson';
 import EyeTrackingHero from '../hero/EyeTrackingHero';
 import JobDetailDialog from '../jobs/JobDetailDialog';
-import fetchJson from '../../utils/fetchJson';
 // PC端的分頁顯示6
 const MOBILE_PAGE_SIZE = 4;
 const DESKTOP_PAGE_SIZE = 6;
@@ -201,44 +201,59 @@ function JobListPage() {
       .catch(() => setFilterError('篩選條件載入失敗，請稍後再試。'));
   }, []);
 
-  const loadJobs = useCallback(async () => {
-    // 每次發送請求前清除舊錯誤，並切換成載入中畫面。
-    setLoading(true);
-    setError('');
+  const loadJobs = useCallback(
+    async (signal) => {
+      // 每次發送請求前清除舊錯誤，並切換成載入中畫面。
+      setLoading(true);
+      setError('');
 
-    // API 使用 pre_page 與 page 進行後端分頁；每頁固定顯示六筆。
-    const params = new URLSearchParams({ pre_page: pageSize, page });
+      // API 使用 pre_page 與 page 進行後端分頁；每頁固定顯示六筆。
+      const params = new URLSearchParams({ pre_page: pageSize, page });
 
-    // 空白條件不放進 query string，讓 Mirage API 視為「不限」。
-    if (appliedFilters.companyName) {
-      params.set('company_name', appliedFilters.companyName);
-    }
-    if (appliedFilters.educationLevel) {
-      params.set('education_level', appliedFilters.educationLevel);
-    }
-    if (appliedFilters.salaryLevel) {
-      params.set('salary_level', appliedFilters.salaryLevel);
-    }
+      // 空白條件不放進 query string，讓 Mirage API 視為「不限」。
+      if (appliedFilters.companyName) {
+        params.set('company_name', appliedFilters.companyName);
+      }
+      if (appliedFilters.educationLevel) {
+        params.set('education_level', appliedFilters.educationLevel);
+      }
+      if (appliedFilters.salaryLevel) {
+        params.set('salary_level', appliedFilters.salaryLevel);
+      }
 
-    try {
-      const result = await fetchJson(`/api/v1/jobs?${params.toString()}`);
+      try {
+        const result = await fetchJson(`/api/v1/jobs?${params.toString()}`, {
+          signal,
+        });
 
-      // 防止 API 欄位缺漏導致 render 時呼叫 map 失敗。
-      setJobs(result.data || []);
-      setTotal(result.total || 0);
-    } catch (requestError) {
-      // 請求失敗時清空舊資料，避免畫面保留不符合目前條件的內容。
-      setJobs([]);
-      setTotal(0);
-      setError('職缺資料載入失敗，請稍後再試。');
-    } finally {
-      setLoading(false);
-    }
-  }, [appliedFilters, page, pageSize]);
+        // 防止 API 欄位缺漏導致 render 時呼叫 map 失敗。
+        setJobs(Array.isArray(result.data) ? result.data : []);
+        // total 必須是非負數；異常值統一視為 0，避免分頁算出 NaN 或負頁數。
+        const safeTotal = Number(result.total);
+        setTotal(Number.isFinite(safeTotal) && safeTotal >= 0 ? safeTotal : 0);
+      } catch (requestError) {
+        // 條件或頁碼改變時會主動取消舊請求；取消不應顯示成 API 錯誤。
+        if (requestError.name === 'AbortError') return;
+
+        // 請求失敗時清空舊資料，避免畫面保留不符合目前條件的內容。
+        setJobs([]);
+        setTotal(0);
+        setError('職缺資料載入失敗，請稍後再試。');
+      } finally {
+        // 已取消的舊請求不可關閉較新請求的 Skeleton。
+        if (!signal.aborted) setLoading(false);
+      }
+    },
+    [appliedFilters, page, pageSize],
+  );
 
   // loadJobs 會在切頁或搜尋條件改變後更新，因此 effect 會重新載入列表。
   useEffect(() => {
-    loadJobs();
+    const controller = new AbortController();
+    loadJobs(controller.signal);
+
+    // 切頁、重新搜尋或卸載頁面時，取消上一個尚未完成的列表請求。
+    return () => controller.abort();
   }, [loadJobs]);
 
   // 送出表單時，自動切回第一頁，並套用目前欄位值作為搜尋條件
@@ -273,11 +288,16 @@ function JobListPage() {
   );
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gray-300 pb-8 md:pb-12">
+    <div
+      className="min-h-screen overflow-x-hidden pb-8 md:pb-12"
+      style={{
+        background: 'linear-gradient(90.51deg, #868686 1.54%, #5C5C5C 101.46%)',
+      }}
+    >
       {/* 頁面頂端視覺：背景、人物、眼睛跟隨滑鼠與品牌 Logo。 */}
       <EyeTrackingHero />
 
-      <main className="relative z-40 mx-auto max-w-[1416px] px-0 md:-mt-32 md:px-4">
+      <main className="relative z-10 mx-auto max-w-[1416px] px-0 md:mb-[-8rem] md:-translate-y-32 md:px-4">
         {/* Top Work 與搜尋面板屬於同一定位容器，確保兩者會一起移動。 */}
         <span className="absolute -top-6 left-0 text-caption font-bold text-white/40 md:-top-7 md:left-4">
           Top Work
@@ -368,21 +388,6 @@ function JobListPage() {
           </form>
 
           <div className="min-h-[430px] w-full md:-mx-px md:w-[calc(100%+2px)]">
-            {/* API 尚未完成時先顯示六張卡片骨架，保持結果區版面穩定。 */}
-            {loading && (
-              <div className="flex flex-col md:h-[502px] md:gap-3">
-                <div className="grid gap-3 md:h-[458px] md:grid-cols-2 md:grid-rows-2 md:gap-[18px] xl:grid-cols-3">
-                  {Array.from({ length: pageSize }, (_, index) => (
-                    <JobCardSkeleton key={`job-skeleton-${index}`} />
-                  ))}
-                </div>
-                {/* 保留 32px 分頁列空間，避免載入完成時主面板高度增加。 */}
-                <div
-                  aria-hidden="true"
-                  className="mx-auto hidden h-8 w-[424px] md:block"
-                />
-              </div>
-            )}
             {/* 請求失敗時顯示錯誤訊息 */}
             {!loading && error && (
               <div className="flex min-h-[380px] items-center justify-center text-red-800">
@@ -396,59 +401,76 @@ function JobListPage() {
               </div>
             )}
 
-            {/* 只有載入完成、沒有錯誤且有資料時才渲染卡片與分頁。 */}
-            {!loading && !error && jobs.length > 0 && (
+            {/*
+              初次載入與切頁都以卡片 Skeleton 保持版面穩定。
+              已取得過資料後，切頁期間仍保留分頁列並暫停操作，避免整列閃爍消失。
+            */}
+            {!error && (loading || jobs.length > 0) && (
               <div className="flex h-full flex-col md:h-[502px] md:gap-3">
                 <div className="grid flex-1 gap-3 md:h-[458px] md:flex-none md:grid-cols-2 md:grid-rows-2 md:gap-[18px] xl:grid-cols-3">
-                  {jobs.map((job) => (
-                    <JobCard
-                      key={job.id}
-                      job={job}
-                      educationLabel={educationMap[String(job.educationId)]}
-                      salaryLabel={salaryMap[String(job.salaryId)]}
-                      onOpen={setSelectedJob}
-                    />
-                  ))}
+                  {loading
+                    ? Array.from({ length: pageSize }, (_, index) => (
+                        <JobCardSkeleton key={`job-skeleton-${index}`} />
+                    ))
+                    : jobs.map((job) => (
+                        <JobCard
+                          key={job.id}
+                          job={job}
+                          educationLabel={educationMap[String(job.educationId)]}
+                          salaryLabel={salaryMap[String(job.salaryId)]}
+                          onOpen={setSelectedJob}
+                        />
+                    ))}
                 </div>
 
                 {/*
                   分頁列固定為 424 × 32px，左右 padding 與項目 gap 都是 6px。
                   aria-current 讓輔助工具能辨識目前頁碼。
                 */}
-                <nav
-                  aria-label="職缺分頁"
-                  className="mx-auto mt-5 flex h-10 w-full items-center justify-center gap-1.5 px-1.5 text-sm text-gray-1000 md:mt-0 md:h-8 md:w-[424px]"
-                >
-                  <button
-                    type="button"
-                    aria-label="上一頁"
-                    disabled={page === 1}
-                    onClick={() => setPage((current) => current - 1)}
-                    className="h-8 w-8 rounded disabled:cursor-not-allowed disabled:text-gray-500"
+                {jobs.length > 0 ? (
+                  <nav
+                    aria-label="職缺分頁"
+                    aria-busy={loading}
+                    className="mx-auto mt-5 flex h-10 w-full items-center justify-center gap-1.5 px-1.5 text-sm text-gray-1000 md:mt-0 md:h-8 md:w-[424px]"
                   >
-                    ‹
-                  </button>
-                  {visiblePages.map((pageNumber) => (
                     <button
                       type="button"
-                      key={pageNumber}
-                      aria-current={pageNumber === page ? 'page' : undefined}
-                      onClick={() => setPage(pageNumber)}
-                      className={`h-8 min-w-8 rounded-full px-2 ${pageNumber === page ? 'bg-gray-300 font-bold' : 'hover:bg-gray-200'}`}
+                      aria-label="上一頁"
+                      disabled={loading || page === 1}
+                      onClick={() => setPage((current) => current - 1)}
+                      className="h-8 w-8 rounded disabled:cursor-not-allowed disabled:text-gray-500"
                     >
-                      {pageNumber}
+                      ‹
                     </button>
-                  ))}
-                  <button
-                    type="button"
-                    aria-label="下一頁"
-                    disabled={page === pageCount}
-                    onClick={() => setPage((current) => current + 1)}
-                    className="h-8 w-8 rounded disabled:cursor-not-allowed disabled:text-gray-500"
-                  >
-                    ›
-                  </button>
-                </nav>
+                    {visiblePages.map((pageNumber) => (
+                      <button
+                        type="button"
+                        key={pageNumber}
+                        aria-current={pageNumber === page ? 'page' : undefined}
+                        disabled={loading}
+                        onClick={() => setPage(pageNumber)}
+                        className={`h-8 min-w-8 rounded-full px-2 disabled:cursor-wait ${pageNumber === page ? 'bg-gray-300 font-bold' : 'hover:bg-gray-200'}`}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      aria-label="下一頁"
+                      disabled={loading || page === pageCount}
+                      onClick={() => setPage((current) => current + 1)}
+                      className="h-8 w-8 rounded disabled:cursor-not-allowed disabled:text-gray-500"
+                    >
+                      ›
+                    </button>
+                  </nav>
+                ) : (
+                  // 首次載入還不知道總頁數，只保留桌面版分頁高度避免畫面跳動。
+                  <div
+                    aria-hidden="true"
+                    className="mx-auto hidden h-8 w-[424px] md:block"
+                  />
+                )}
               </div>
             )}
           </div>

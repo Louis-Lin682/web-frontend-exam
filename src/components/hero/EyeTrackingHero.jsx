@@ -20,10 +20,7 @@ function EyeTrackingHero() {
       const rightCenterY = rightRect.top + rightRect.height / 2;
       const eyesCenterX = (leftCenterX + rightCenterX) / 2;
       const eyesCenterY = (leftCenterY + rightCenterY) / 2;
-      const angle = Math.atan2(
-        pointerY - eyesCenterY,
-        pointerX - eyesCenterX,
-      );
+      const angle = Math.atan2(pointerY - eyesCenterY, pointerX - eyesCenterX);
       const maxRadius = leftRect.width * 0.107;
       const transform = `translate(${Math.cos(angle) * maxRadius}px, ${
         Math.sin(angle) * maxRadius
@@ -46,7 +43,7 @@ function EyeTrackingHero() {
       />
 
       {/* 人物和眼球共用同一個等比例座標容器。 */}
-      <div className="pointer-events-none absolute bottom-0 left-0 z-[5] h-full aspect-[1097/823]">
+      <div className="pointer-events-none absolute bottom-[-2px] left-0 z-[5] h-full aspect-[1097/823]">
         <img
           src="/images/hero/character-02.png"
           alt=""

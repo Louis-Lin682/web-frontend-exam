@@ -1,11 +1,49 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+/* eslint-disable object-curly-newline, operator-linebreak */
 import Skeleton from '@mui/material/Skeleton';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import fetchJson from '../../utils/fetchJson';
+
+function CarouselImage({ alt, eager, src }) {
+  // 每張圖片各自記錄載入狀態，避免其中一張失敗時影響整組輪播。
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div className="relative h-[150px] w-[250px] shrink-0 overflow-hidden bg-gray-300">
+      {/* 圖片尚未完成下載時保留相同尺寸，避免輪播內容跳動。 */}
+      {!loaded && !failed && (
+        <Skeleton
+          animation="wave"
+          className="absolute inset-0"
+          height={150}
+          variant="rectangular"
+          width={250}
+        />
+      )}
+
+      {failed ? (
+        // 載入失敗時以固定尺寸的替代畫面取代瀏覽器預設破圖圖示。
+        <div
+          aria-label={`${alt}載入失敗`}
+          className="flex h-full w-full items-center justify-center bg-gray-300 text-sm text-gray-700"
+          role="img"
+        >
+          圖片無法載入
+        </div>
+      ) : (
+        <img
+          alt={alt}
+          className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          draggable="false"
+          loading={eager ? 'eager' : 'lazy'}
+          onError={() => setFailed(true)}
+          onLoad={() => setLoaded(true)}
+          src={src}
+        />
+      )}
+    </div>
+  );
+}
 
 function JobDetailDialog({ job, onClose }) {
   // detail 保存使用者所選職缺的完整資料；列表卡片只提供摘要資訊。
@@ -18,6 +56,8 @@ function JobDetailDialog({ job, onClose }) {
   const [slide, setSlide] = useState(0);
   const [carouselDragX, setCarouselDragX] = useState(0);
   const [carouselTransition, setCarouselTransition] = useState(true);
+  const [carouselHovered, setCarouselHovered] = useState(false);
+  const [carouselDragging, setCarouselDragging] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);
   const carouselDragRef = useRef(null);
   const closeTimerRef = useRef(null);
@@ -45,10 +85,17 @@ function JobDetailDialog({ job, onClose }) {
     window.requestAnimationFrame(() => setDialogVisible(true));
     fetchJson(`/api/v1/jobs/${job.id}`, { signal: controller.signal })
       .then((data) => {
+        // HTTP 成功不代表資料格式一定正確；null 或陣列都不是有效的詳情物件。
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+          throw new Error('Invalid job detail response');
+        }
+
         // API 成功後將輪播定位在中間那組複製圖片，供無限輪播向兩側移動。
         setCarouselTransition(false);
         setDetail(data);
-        setSlide(data.companyPhoto?.length || 0);
+        setSlide(
+          Array.isArray(data.companyPhoto) ? data.companyPhoto.length : 0,
+        );
         window.requestAnimationFrame(() => {
           window.requestAnimationFrame(() => setCarouselTransition(true));
         });
@@ -69,11 +116,11 @@ function JobDetailDialog({ job, onClose }) {
     };
     const originalOverflow = document.body.style.overflow;
     const originalPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth = window.innerWidth
-      - document.documentElement.clientWidth;
-    const currentPaddingRight = Number.parseFloat(
-      window.getComputedStyle(document.body).paddingRight,
-    ) || 0;
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+    const currentPaddingRight =
+      Number.parseFloat(window.getComputedStyle(document.body).paddingRight) ||
+      0;
 
     // 隱藏捲軸前補回相同寬度，避免彈窗開關時頁面水平跳動。
     if (scrollbarWidth > 0) {
@@ -90,35 +137,52 @@ function JobDetailDialog({ job, onClose }) {
     };
   }, [job, reloadKey, requestClose]);
 
-  useEffect(() => () => {
-    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
 
-  const photos = detail?.companyPhoto || [];
+  // 圖片欄位缺漏或型別不符時使用空陣列，避免展開運算與 map 發生錯誤。
+  const photos = Array.isArray(detail?.companyPhoto) ? detail.companyPhoto : [];
   const trackPhotos = photos.length ? [...photos, ...photos, ...photos] : [];
-  const trackWidth = trackPhotos.length * 250
-    + Math.max(0, trackPhotos.length - 1) * 8;
+  const trackWidth =
+    trackPhotos.length * 250 + Math.max(0, trackPhotos.length - 1) * 8;
   const slideOffset = slide * 258;
   const normalizedSlide = photos.length
     ? ((slide % photos.length) + photos.length) % photos.length
     : 0;
-  const indicatorIndex = photos.length > 1
-    ? Math.floor((normalizedSlide * 3) / photos.length)
-    : 0;
+  const indicatorIndex =
+    photos.length > 1 ? Math.floor((normalizedSlide * 3) / photos.length) : 0;
 
+  // 使用單次 timeout 取代 interval：每次 slide 改變都會重新等待完整 1.5 秒。
+  // 滑鼠停留或正在拖曳時不建立計時器，因此手動與自動播放不會搶著切圖。
   useEffect(() => {
-    if (!job || photos.length < 2) return undefined;
-    const timer = window.setInterval(() => {
-      if (carouselDragRef.current) return;
+    if (
+      !job
+      || photos.length < 2
+      || carouselHovered
+      || carouselDragging
+    ) return undefined;
+
+    const timer = window.setTimeout(() => {
       setSlide((current) => current + 1);
     }, 1500);
-    return () => window.clearInterval(timer);
-  }, [job, photos.length]);
+    return () => window.clearTimeout(timer);
+  }, [
+    carouselDragging,
+    carouselHovered,
+    job,
+    photos.length,
+    slide,
+  ]);
 
   if (!job) return null;
 
   const startCarouselDrag = (event) => {
     carouselDragRef.current = { pointerX: event.clientX };
+    setCarouselDragging(true);
     setCarouselTransition(false);
     setCarouselDragX(0);
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -139,6 +203,8 @@ function JobDetailDialog({ job, onClose }) {
       setSlide((current) => current - 1);
     }
     carouselDragRef.current = null;
+    // 放開後重新啟動完整 1.5 秒倒數，不會緊接著被自動播放切走。
+    setCarouselDragging(false);
     setCarouselDragX(0);
   };
 
@@ -173,14 +239,19 @@ function JobDetailDialog({ job, onClose }) {
         className={`flex h-[768px] w-full max-w-[331px] shrink-0 flex-col overflow-hidden rounded bg-gray-100 shadow-[0px_11px_15px_-7px_#00000033,0px_24px_38px_3px_#00000024,0px_9px_46px_8px_#0000001F] transition-all duration-200 ease-out md:h-[calc(100vh-32px)] md:max-h-[768px] md:max-w-[750px] ${dialogVisible ? 'translate-y-0 scale-100' : 'translate-y-2 scale-[0.98]'}`}
       >
         <header className="border-b border-gray-400 px-4 py-3 md:px-6 md:py-4">
-          <h2 id="job-detail-title" className="text-base font-bold text-gray-1100 md:text-xl">
+          <h2
+            id="job-detail-title"
+            className="text-base font-bold text-gray-1100 md:text-xl"
+          >
             詳細資訊
           </h2>
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 md:px-6 md:py-5">
           <p className="text-sm text-gray-1000 md:text-lg">
-            <strong className="mr-2 text-base md:text-xl">{job.companyName}</strong>
+            <strong className="mr-2 text-base md:text-xl">
+              {job.companyName}
+            </strong>
             {job.jobTitle}
           </p>
 
@@ -201,9 +272,24 @@ function JobDetailDialog({ job, onClose }) {
                   ))}
                 </div>
                 <div className="flex h-1.5 items-center justify-center gap-2">
-                  <Skeleton animation="wave" height={6} width={24} variant="rounded" />
-                  <Skeleton animation="wave" height={6} width={6} variant="circular" />
-                  <Skeleton animation="wave" height={6} width={6} variant="circular" />
+                  <Skeleton
+                    animation="wave"
+                    height={6}
+                    width={24}
+                    variant="rounded"
+                  />
+                  <Skeleton
+                    animation="wave"
+                    height={6}
+                    width={6}
+                    variant="circular"
+                  />
+                  <Skeleton
+                    animation="wave"
+                    height={6}
+                    width={6}
+                    variant="circular"
+                  />
                 </div>
               </div>
 
@@ -241,7 +327,11 @@ function JobDetailDialog({ job, onClose }) {
           )}
 
           {!loading && !detailError && photos.length > 0 && (
-            <div className="flex h-[166px] w-full flex-col gap-[10px] overflow-hidden">
+            <div
+              className="flex h-[166px] w-full flex-col gap-[10px] overflow-hidden"
+              onMouseEnter={() => setCarouselHovered(true)}
+              onMouseLeave={() => setCarouselHovered(false)}
+            >
               <div
                 className="h-[150px] w-full touch-pan-y overflow-hidden cursor-grab active:cursor-grabbing"
                 onPointerDown={startCarouselDrag}
@@ -258,12 +348,14 @@ function JobDetailDialog({ job, onClose }) {
                   }}
                 >
                   {trackPhotos.map((photo, index) => (
-                    <img
+                    <CarouselImage
+                      // 輪播初始位置在中間那組圖片，優先下載畫面會看到的前三張。
+                      eager={
+                        index >= photos.length && index < photos.length + 3
+                      }
                       key={`${photo}-${index}`}
                       src={photo}
-                      alt={`${job.companyName} 工作環境 ${index + 1}`}
-                      draggable="false"
-                      className="h-[150px] w-[250px] shrink-0 object-cover"
+                      alt={`${job.companyName} ${index + 1}`}
                     />
                   ))}
                 </div>
@@ -275,7 +367,9 @@ function JobDetailDialog({ job, onClose }) {
                     type="button"
                     aria-label={`顯示第 ${index + 1} 段圖片`}
                     onClick={() => {
-                      const target = Math.round((index * (photos.length - 1)) / 2);
+                      const target = Math.round(
+                        (index * (photos.length - 1)) / 2,
+                      );
                       setSlide(photos.length + target);
                     }}
                     className={`h-1.5 rounded-[18px] transition-all ${index === indicatorIndex ? 'w-6 bg-orange-700' : 'w-1.5 bg-gray-500'}`}
@@ -287,16 +381,29 @@ function JobDetailDialog({ job, onClose }) {
 
           {!loading && !detailError && detail && (
             <div className="min-h-0 flex-1 overflow-y-auto pr-2 text-sm leading-6 text-gray-900">
-              <h3 className="mb-2 text-base font-bold text-gray-1100 md:text-lg">工作內容</h3>
+              <h3 className="mb-2 text-base font-bold text-gray-1100 md:text-lg">
+                工作內容
+              </h3>
               {/* The HTML comes from this project's local Mirage fixture. */}
               {/* eslint-disable-next-line react/no-danger */}
-              <div dangerouslySetInnerHTML={{ __html: detail.description }} />
+              <div
+                dangerouslySetInnerHTML={{
+                  __html:
+                    typeof detail.description === 'string'
+                      ? detail.description
+                      : '',
+                }}
+              />
             </div>
           )}
         </div>
 
         <footer className="flex shrink-0 justify-end border-t border-gray-400 px-4 py-3 md:px-6">
-          <button type="button" onClick={requestClose} className="text-sm text-gray-1000 hover:text-gray-1500">
+          <button
+            type="button"
+            onClick={requestClose}
+            className="text-sm text-gray-1000 hover:text-gray-1500"
+          >
             關閉
           </button>
         </footer>
