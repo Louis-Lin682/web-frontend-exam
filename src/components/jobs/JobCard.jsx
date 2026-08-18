@@ -40,7 +40,7 @@ function JobCard({
 }) {
   return (
     <article
-      className="flex h-[210px] flex-col gap-2.5 overflow-hidden rounded-md border border-gray-500 bg-gray-100 p-4 transition-shadow duration-200 ease-out motion-safe:animate-card-enter hover:shadow-[0_0_6px_0_#00000040] md:h-auto md:min-h-[210px] md:gap-0"
+      className="flex h-[210px] flex-col gap-2.5 overflow-hidden rounded-md border border-gray-500 bg-gray-100 p-4 transition-[transform,box-shadow] duration-200 ease-out motion-safe:animate-card-enter md:h-auto md:min-h-[210px] md:gap-0 md:hover:-translate-y-[3px] md:hover:shadow-[0_0_16px_0_#00000040]"
       style={{ animationDelay: `${animationDelay}ms` }}
     >
       {/* 公司名稱 */}
@@ -75,7 +75,7 @@ function JobCard({
           type="button"
           aria-label={`查看 ${job.companyName} ${job.jobTitle} 的詳細資訊`}
           onClick={() => onOpen(job)}
-          className="absolute -inset-y-2 inset-x-0 cursor-pointer text-center text-sm font-bold leading-[18px] text-orange-700 transition-colors hover:text-orange-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-700 md:inset-x-0 md:-bottom-2 md:top-1"
+          className="absolute -inset-y-2 inset-x-0 cursor-pointer text-center text-sm font-bold leading-[18px] text-orange-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-700 md:inset-x-0 md:-bottom-2 md:top-1"
         >
           查看細節
         </button>

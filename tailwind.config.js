@@ -26,7 +26,7 @@ module.exports = {
       },
       animation: {
         'hero-zoom': 'heroZoom 1.5s ease-in-out infinite',
-        'card-enter': 'cardEnter 300ms ease-out both',
+        'card-enter': 'cardEnter 300ms ease-out backwards',
       },
       colors: {
         orange: {
