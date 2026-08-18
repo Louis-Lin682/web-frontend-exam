@@ -433,7 +433,7 @@ function JobListPage() {
             {!error && (loading || jobs.length > 0) && (
               <div className="flex h-full flex-col md:gap-3 xl:h-[502px]">
                 {/* 手機固定保留四張卡片高度，避免末頁筆數不足時頁面突然縮短。 */}
-                <div className="grid min-h-[876px] flex-1 gap-3 md:min-h-0 md:grid-cols-2 md:gap-[18px] xl:h-[458px] xl:flex-none xl:grid-cols-3 xl:grid-rows-2">
+                <div className="grid min-h-[876px] flex-1 content-start gap-3 md:min-h-0 md:grid-cols-2 md:gap-[18px] xl:h-[458px] xl:flex-none xl:grid-cols-3 xl:grid-rows-2">
                   {loading
                     ? Array.from({ length: pageSize }, (_, index) => (
                         <JobCardSkeleton key={`job-skeleton-${index}`} />
