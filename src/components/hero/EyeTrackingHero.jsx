@@ -21,7 +21,9 @@ function EyeTrackingHero() {
       const eyesCenterX = (leftCenterX + rightCenterX) / 2;
       const eyesCenterY = (leftCenterY + rightCenterY) / 2;
       const angle = Math.atan2(pointerY - eyesCenterY, pointerX - eyesCenterX);
-      const maxRadius = leftRect.width * 0.107;
+      // 手機眼睛尺寸較小，觸控時提高移動比例，讓跟隨效果更容易被看見。
+      const movementRatio = event.pointerType === 'touch' ? 0.18 : 0.107;
+      const maxRadius = leftRect.width * movementRatio;
       const transform = `translate(${Math.cos(angle) * maxRadius}px, ${
         Math.sin(angle) * maxRadius
       }px)`;
@@ -30,12 +32,16 @@ function EyeTrackingHero() {
       rightEye.style.transform = transform;
     };
 
+    window.addEventListener('pointerdown', handlePointerMove);
     window.addEventListener('pointermove', handlePointerMove);
-    return () => window.removeEventListener('pointermove', handlePointerMove);
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerMove);
+      window.removeEventListener('pointermove', handlePointerMove);
+    };
   }, []);
 
   return (
-    <div className="relative aspect-[375/238] w-full overflow-hidden select-none md:aspect-[1440/823]">
+    <div className="relative aspect-[375/238] w-full touch-none overflow-hidden select-none md:aspect-[1440/823]">
       <img
         src="/images/hero/background-01.png"
         alt="Background"
