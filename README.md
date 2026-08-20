@@ -40,7 +40,6 @@ npm start
 ```bash
 npm start                      # 啟動開發環境
 npm run lint                   # 使用 ESLint 檢查 src
-npm test -- --watchAll=false   # 執行一次完整測試
 npm run build                  # 建立正式版本
 ```
 
